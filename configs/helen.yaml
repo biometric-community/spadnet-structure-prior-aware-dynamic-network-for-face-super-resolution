@@ -1,0 +1,49 @@
+# Helen protocol (Sec. IV-A): 2005 train / 50 test, rotate+flip aug
+paper:
+  slug: spadnet-structure-prior-aware-dynamic-network-for-face-super-resolution
+  title: SPADNet Structure Prior-Aware Dynamic Network for Face Super-Resolution
+source_code:
+  url: https://github.com/wcy-cs/SPADNet
+  commit: 2f185eb3a8b81aa30957b41e8b49b2b5de86bde4
+data:
+  dataset: helen
+  root: ../../datasets/celeba/extracted/celeba
+  helen_root: ../../datasets/helen
+  max_train_samples: null
+  max_val_samples: null
+  max_test_samples: null
+  augment: false
+  augment_helen: true
+model:
+  name: spadnet
+  scale: 8
+  img_size: 128
+  n_feats: 64
+  number: 6
+  hab_num: 5
+train:
+  protocol: helen_full
+  epochs: 50
+  batch_size: 8
+  lr: 0.0001
+  beta1: 0.9
+  beta2: 0.999
+  lr_decay_epochs: 10
+  lr_decay_steps: 5
+  seed: 42
+  num_workers: 8
+  log_every: 50
+  max_steps: null
+eval:
+  batch_size: 8
+  metric: psnr_ssim_y
+paths:
+  checkpoint_dir: outputs/checkpoints/helen
+  log_dir: outputs/logs
+  pred_dir: outputs/predictions/helen
+  figure_dir: outputs/figures
+report:
+  title: SPADNet Helen Results
+  embed_format: svg
+device: cuda
+cuda_device: 0

@@ -1,0 +1,51 @@
+# Full-protocol config (size gate: CelebA+Helen < 5 GiB → mandatory full train)
+paper:
+  slug: spadnet-structure-prior-aware-dynamic-network-for-face-super-resolution
+  title: SPADNet Structure Prior-Aware Dynamic Network for Face Super-Resolution
+source_code:
+  url: https://github.com/wcy-cs/SPADNet
+  commit: 2f185eb3a8b81aa30957b41e8b49b2b5de86bde4
+  license: unspecified (PacConv submodule CC BY-NC-SA 4.0)
+data:
+  dataset: celeba
+  root: ../../datasets/celeba/extracted/celeba
+  helen_root: ../../datasets/helen
+  max_train_samples: null
+  max_val_samples: null
+  max_test_samples: null
+  augment: false
+model:
+  name: spadnet
+  scale: 8
+  img_size: 128
+  n_feats: 64
+  number: 6
+  hab_num: 5
+train:
+  protocol: full
+  # Paper Sec IV-B: Adam 1e-4, β=(0.9,0.999), LR halved every 10 epochs; upstream default 2000 epochs (D3: 50 practical)
+  epochs: 50
+  batch_size: 8
+  lr: 0.0001
+  beta1: 0.9
+  beta2: 0.999
+  lr_decay_epochs: 10
+  lr_decay_steps: 5
+  seed: 42
+  num_workers: 8
+  log_every: 200
+  max_steps: null
+eval:
+  batch_size: 8
+  metric: psnr_ssim_y
+paths:
+  checkpoint_dir: outputs/checkpoints/full
+  log_dir: outputs/logs
+  pred_dir: outputs/predictions/full
+  figure_dir: outputs/figures
+report:
+  title: SPADNet Results Report (full protocol)
+  embed_format: svg
+device: cuda
+# With CUDA_VISIBLE_DEVICES set by train_full.sh, always use the first visible device.
+cuda_device: 0
