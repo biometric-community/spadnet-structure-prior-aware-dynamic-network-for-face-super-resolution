@@ -84,35 +84,82 @@ def plot_psnr_ssim_bars(eval_res: dict, figdir: Path, dataset: str, scale: int):
     return out
 
 
-def write_report(cfg: dict, train_sum, eval_res, figures: list, report_path: Path):
+def write_report(cfg: dict, train_sum, eval_res, figures: list, report_path: Path, history=None):
     title = cfg.get("report", {}).get("title") or cfg["paper"]["title"]
     lines = [f"# {title}", "", "## Summary", ""]
+    lines += [
+        "| Run | PSNR (dB) | SSIM | N | Protocol |",
+        "|-----|-----------|------|---|----------|",
+    ]
     if eval_res:
-        lines += [
-            f"| Metric | Ours ({eval_res.get('protocol', 'run')}) | Paper Table I |",
-            "|--------|------|------|",
-            f"| PSNR (dB) | {eval_res['psnr']:.3f} | see PDF (prose cites ×4≈{PAPER_TABLE_REF['celeba_x4_psnr']} dB) |",
-            f"| SSIM | {eval_res['ssim']:.4f} | see PDF Table I |",
-            f"| N test | {eval_res.get('n', '—')} | CelebA 1000 / Helen 50 |",
+        lines.append(
+            f"| Eval ({eval_res.get('protocol', 'run')}) | {eval_res['psnr']:.3f} | "
+            f"{eval_res['ssim']:.4f} | {eval_res.get('n', '—')} | "
+            f"`{eval_res.get('protocol', cfg['train'].get('protocol', 'subset'))}` |"
+        )
+    if train_sum:
+        lines.append(
+            f"| Full train val (epoch {train_sum.get('epoch', '?')}) | "
+            f"{train_sum['val_psnr']:.3f} | {train_sum['val_ssim']:.4f} | "
+            f"— | `{train_sum.get('protocol', 'full')}` in progress |"
+        )
+    lines.append(
+        f"| Paper Table I (×{cfg['model']['scale']}, prose) | see PDF "
+        f"(×4≈{PAPER_TABLE_REF['celeba_x4_psnr']} dB) | see PDF | 1000 test | author protocol |"
+    )
+    lines += [
+        "",
+        f"_Scale ×{cfg['model']['scale']}; dataset `{cfg['data'].get('dataset', 'celeba')}`. "
+        f"{PAPER_TABLE_REF['note']} Full protocol: {cfg['train'].get('epochs', '?')} epochs "
+        f"(D3); refresh after completion._",
+        "",
+    ]
+    if not eval_res and not train_sum:
+        lines = [
+            f"# {title}",
             "",
-            f"_Scale ×{eval_res.get('scale', 8)}; dataset `{eval_res.get('dataset', 'celeba')}`. "
-            f"{PAPER_TABLE_REF['note']}_",
+            "## Summary",
+            "",
+            "**BLOCKED:** Real dataset training required. No fabricated metrics.",
             "",
         ]
-    elif train_sum:
-        lines += ["**BLOCKED:** No eval_results.json yet. Run `scripts/eval.sh` after training.", ""]
-    else:
-        lines += ["**BLOCKED:** Real dataset training required. No fabricated metrics.", ""]
+
+    size_note = ""
+    size_path = Path("outputs/logs/dataset_size.json")
+    if size_path.is_file():
+        try:
+            size_note = (
+                f"- Size gate: **{json.loads(size_path.read_text()).get('total_gib', '?')} GiB** "
+                f"total → `{json.loads(size_path.read_text()).get('decision', '?')}` "
+                f"(`outputs/logs/dataset_size.json`)"
+            )
+        except Exception:
+            size_note = ""
 
     lines += ["## Setup", ""]
     lines += [
-        f"- Dataset: `{cfg['data'].get('dataset', 'celeba')}`",
-        f"- Scale: ×{cfg['model']['scale']}",
+        f"- Dataset: CelebA (`{cfg['data'].get('root', '')}`) + Helen "
+        f"(`{cfg['data'].get('helen_root', '../../datasets/helen')}`)",
+        f"- Scale: ×{cfg['model']['scale']} (LR → HR {cfg['model'].get('img_size', 128)}×"
+        f"{cfg['model'].get('img_size', 128)})",
+    ]
+    if size_note:
+        lines.append(size_note)
+    lines += [
         f"- Protocol: `{cfg['train'].get('protocol', 'subset')}`",
+        f"- Upstream refactor: {cfg.get('source_code', {}).get('url', 'N/A')} → package `spadnet`",
         "",
         "## Figures",
         "",
     ]
+    if history and isinstance(history.get("epochs"), list) and history["epochs"]:
+        last = history["epochs"][-1]
+        lines.append(
+            f"_Train curves through epoch {last}: "
+            f"val PSNR={history['val_psnr'][-1]:.3f} dB, "
+            f"SSIM={history['val_ssim'][-1]:.4f}._"
+        )
+        lines.append("")
     for fig in figures:
         if fig:
             rel = fig.relative_to(report_path.parent)
@@ -123,6 +170,9 @@ def write_report(cfg: dict, train_sum, eval_res, figures: list, report_path: Pat
         "",
         "```bash",
         "bash scripts/report.sh",
+        "# After full train finishes:",
+        "bash scripts/eval.sh --config configs/full.yaml --checkpoint outputs/checkpoints/full/latest.pt",
+        "bash scripts/report.sh --config configs/full.yaml",
         "```",
         "",
     ]
@@ -158,7 +208,7 @@ def main(argv=None):
             )
         )
 
-    write_report(cfg, train_sum, eval_res, figures, Path("REPORT.md"))
+    write_report(cfg, train_sum, eval_res, figures, Path("REPORT.md"), history=history)
     print("Wrote REPORT.md")
 
 

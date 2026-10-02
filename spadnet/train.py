@@ -106,7 +106,17 @@ def main(argv=None):
         start_epoch = int(ckpt_blob.get("epoch", -1)) + 1
         hist_path = log_dir / "train_history.json"
         if hist_path.is_file():
-            history = json.loads(hist_path.read_text())
+            loaded = json.loads(hist_path.read_text())
+            # Guard against corrupted scalar-shaped history (must be per-epoch lists).
+            if isinstance(loaded.get("epochs"), list):
+                history = {
+                    "epochs": list(loaded.get("epochs", [])),
+                    "train_loss": list(loaded.get("train_loss", [])),
+                    "val_psnr": list(loaded.get("val_psnr", [])),
+                    "val_ssim": list(loaded.get("val_ssim", [])),
+                }
+            else:
+                print(f"Warning: ignoring non-list train_history at {hist_path}")
         global_step = start_epoch * steps_per_epoch
         for _ in range(global_step):
             scheduler.step()
